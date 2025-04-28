@@ -27,7 +27,7 @@ This repository contains resources and code examples for understanding Linux con
    - Read `namespaces.md` and `control_group.md` for in-depth explanations of namespaces and cgroups.
 
 4. **Follow Along with the Video**:
-   - Use the `video_script.md` and `animation_plan.md` to understand the concepts visually and contextually.
+   - Link coming soon.
 
 ## Prerequisites
 
@@ -38,4 +38,4 @@ This repository contains resources and code examples for understanding Linux con
 ##
 ## License
 
-This repository is licensed under the MIT License. Feel free to use and modify the content as needed.
+This branch of the repository is licensed under the MIT License. Feel free to use and modify the content as needed.
