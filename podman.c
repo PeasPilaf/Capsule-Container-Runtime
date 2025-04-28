@@ -1,6 +1,13 @@
 #include "headers.h"
 
 int main(int argc, char *argv[]) {
+
+    /*
+     * Attempting to mimic docker exec: directly executing the provided command.
+     * WARNING: This does NOT provide any container isolation. Running arbitrary
+     * commands without proper sandboxing or namespaces is dangerous.
+     */
+    
     if (argc < 2) {
         fprintf(stderr, "Usage: %s <command> [args...]\n", argv[0]);
         exit(EXIT_FAILURE);
@@ -11,8 +18,10 @@ int main(int argc, char *argv[]) {
         printf(" %s", argv[i]);
     }
     printf("\n");
-
-    // Actual command execution logic would go here
+    
+    execvp(argv[1], argv + 1);
+    perror("execvp failed");
+    exit(EXIT_FAILURE);
 
     return 0;
 }
