@@ -28,6 +28,7 @@ static int child_shim_func(void *arg) {
     }
     new_argv[original_argc + 1] = NULL; // Null-terminate the new argv array
 
+    // --- Shim Process Function (runs immediately after clone) ---
     printf("[Shim:%ld] Parent PID: %ld. Executing 'init' phase via /proc/self/exe...\n", (long)getpid(), (long)getppid());
     printf("[Shim:%ld] New argv for execve: ", (long)getpid());
     for (int i = 0; new_argv[i] != NULL; i++) {
@@ -42,53 +43,60 @@ static int child_shim_func(void *arg) {
 
     // If execve returns, it's an error
     perror("[Shim] execve failed");
-    // Use _exit in child/shim after clone/fork before final exec if possible
     _exit(EXIT_FAILURE);
 }
 
 // --- Container Init Function (runs after self-exec, called from main) ---
 // program_name is argv[0] ("/proc/self/exe"), command_argv is &argv[2] from main
 static int container_init(char *program_name, char *const command_argv[]) {
-    printf("[Init:%ld] Running container_init (Parent PID: %ld)\n", (long)getpid(), (long)getppid());
+    // Because of CLONE_NEWPID, this process should have PID 1 within its namespace
+    printf("[Init:PID %ld] Running container_init (My Parent PID according to namespace: %ld)\n", (long)getpid(), (long)getppid());
 
     // --- UTS Namespace Setup ---
-    printf("[Init:%ld] Setting hostname to '%s'...\n", (long)getpid(), CONTAINER_HOSTNAME);
+    printf("[Init:PID %ld] Setting hostname to '%s'...\n", (long)getpid(), CONTAINER_HOSTNAME);
     if (sethostname(CONTAINER_HOSTNAME, strlen(CONTAINER_HOSTNAME)) == -1) {
         perror("[Init] sethostname failed");
-        // In a real scenario, more cleanup might be needed.
-        // For now, just exit.
-        return EXIT_FAILURE; // Return failure from init
+        return EXIT_FAILURE;
     }
-    printf("[Init:%ld] Hostname set.\n", (long)getpid());
+    printf("[Init:PID %ld] Hostname set.\n", (long)getpid());
+
+    // --- Demonstrate PID Namespace ---
+    printf("[Init:PID %ld] My PID inside the namespace should be 1. Let's check with getpid(): %ld\n", (long)getpid(), (long)getpid());
+    printf("[Init:PID %ld] My Parent PID inside the namespace should be 0 (no parent in this namespace). Let's check getppid(): %ld\n", (long)getpid(), (long)getppid());
+    printf("[Init:PID %ld] Now executing the final command: %s\n", (long)getpid(), command_argv[0]);
+    printf("[Init:PID %ld] Note: If you run 'ps' or similar, you might still see host processes because /proc is not isolated yet!\n", (long)getpid());
 
     // --- Execute the final user process ---
     // command_argv[0] is the command, command_argv is the full argv array for it.
-    printf("[Init:%ld] Executing final command: %s\n", (long)getpid(), command_argv[0]);
     execvp(command_argv[0], command_argv);
 
     // If execvp returns, it failed
     perror("[Init] final execvp failed");
-    return EXIT_FAILURE; // Return failure from init
+    return EXIT_FAILURE;
 }
 
 
 // --- Main Function ---
 int main(int argc, char *argv[]) {
     /*
-    This function is the entry point, and we will check if we need to run the "init" phase
-    or, as the parent, set up the container and call the shim function.
-    The "init" phase is responsible for setting up the container environment and executing the
-    final command. The parent process will create a new process using clone() and wait for it to finish.
+    Now introduces PID namespace isolation.
+    - The init process inside the container will report PID 1.
+    - Running 'ps' inside the container might still show host processes.
+      This is because 'ps' reads from /proc, and we haven't isolated
+      the filesystem view (Mount Namespace) or mounted a new /proc yet.
 
-    To check if the namespaces are set up correctly, we can use the following command:
-    gcc podman.c -o podman.c -o podman.c -Wall -Werror -std=gnu99
-    sudo ./podman.c /bin/bash
-    Please note the changed hostname in the prompt.
-    It should say "user@container-1" instead of "user@host", depending on your shell settings.
-    You can also check the hostname using the "hostname" command.
-    Once you are done, please exit the shell.
-    The container will be cleaned up automatically when the process exits.
-    You can now check your hostname again, if you wish.
+    To build and run:
+    gcc podman.c -o podman -Wall -Werror -std=gnu99
+    sudo ./podman.o /bin/sh -c "echo Shell PID: \$\$; ps aux | head -n 5; sleep 10"
+    Or to get an interactive shell:
+    sudo ./podman.o /bin/bash
+    (Inside bash, run `echo $$` and `ps aux`)
+
+    Observe:
+    1. The "[Init:PID 1]" messages.
+    2. The PID reported by `echo $$` inside the container's shell (should be 1).
+    3. The output of `ps aux`, showing many processes from the host. Can you guess,
+    why ps does not show the container processes ids?
     */
 
     // --- Check if we are in the "init" phase ---
@@ -97,14 +105,13 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "[Init:%ld] Error: 'init' requires a command to run.\n", (long)getpid());
             exit(EXIT_FAILURE);
         }
-        // Pass the program name (ignored by init) and the command+args part (&argv[2])
-        // The return value from container_init indicates success/failure *if* execvp fails
         exit(container_init(argv[0], &argv[2]));
     }
 
     // --- Otherwise, we are in the "create" phase (parent) ---
     if (argc < 2) {
         fprintf(stderr, "Usage: %s <command> [args...]\n", argv[0]);
+        fprintf(stderr, "Example: %s /bin/sh -c \"echo Shell PID: \\$\\$; ps aux | head -n 5\"\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 
@@ -129,9 +136,11 @@ int main(int argc, char *argv[]) {
     stack_top = child_stack + STACK_SIZE; // Point to the top of the stack
     printf("[Parent:%ld] Allocated %d bytes stack for child.\n", (long)getpid(), STACK_SIZE);
 
-    // Flags for clone: New UTS namespace + Send SIGCHLD to parent on termination
-    int clone_flags = CLONE_NEWUTS | SIGCHLD;
-    printf("[Parent:%ld] Calling clone() with flags: CLONE_NEWUTS | SIGCHLD\n", (long)getpid());
+    // Flags for clone: New UTS + New PID namespace + Send SIGCHLD to parent on termination
+    // <<< CHANGE: Added CLONE_NEWPID >>>
+    int clone_flags = CLONE_NEWUTS | CLONE_NEWPID | SIGCHLD;
+    // <<< CHANGE: Updated log message >>>
+    printf("[Parent:%ld] Calling clone() with flags: CLONE_NEWUTS | CLONE_NEWPID | SIGCHLD\n", (long)getpid());
 
     // Pass the original argv to the shim function via the 'arg' parameter
     child_pid = clone(child_shim_func, stack_top, clone_flags, argv);
@@ -141,10 +150,10 @@ int main(int argc, char *argv[]) {
         free(child_stack); // Clean up stack on failure
         exit(EXIT_FAILURE);
     }
-    printf("[Parent:%ld] Cloned shim process with PID: %ld\n", (long)getpid(), (long)child_pid);
+    printf("[Parent:%ld] Cloned shim process with Host PID: %ld\n", (long)getpid(), (long)child_pid);
 
     // --- Parent Waits ---
-    printf("[Parent:%ld] Waiting for container process (original PID %ld) to exit...\n", (long)getpid(), (long)child_pid);
+    printf("[Parent:%ld] Waiting for container process (Host PID %ld) to exit...\n", (long)getpid(), (long)child_pid);
     if (waitpid(child_pid, &status, 0) == -1) {
         perror("[Parent] waitpid failed");
         // Still try to free stack
