@@ -1,6 +1,13 @@
 #include "headers.h"
 
 int main(int argc, char *argv[]) {
+
+    /*
+     * Attempting to mimic docker exec: directly executing the provided command.
+     * WARNING: This does NOT provide any container isolation. Running arbitrary
+     * commands without proper sandboxing or namespaces is dangerous.
+     */
+    
     if (argc < 2) {
         fprintf(stderr, "Usage: %s <command> [args...]\n", argv[0]);
         exit(EXIT_FAILURE);
