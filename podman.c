@@ -11,8 +11,10 @@ int main(int argc, char *argv[]) {
         printf(" %s", argv[i]);
     }
     printf("\n");
-
-    // Actual command execution logic would go here
+    
+    execvp(argv[1], argv + 1);
+    perror("execvp failed");
+    exit(EXIT_FAILURE);
 
     return 0;
 }
