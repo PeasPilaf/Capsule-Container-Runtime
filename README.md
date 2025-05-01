@@ -16,7 +16,7 @@ This repository contains resources and code examples for understanding Linux con
 
 1. **Run the C Programs**:
    - Compile the C files using `gcc` or a similar compiler.
-   - Example: `gcc -o two_phase_runc two_phase_runc.c -lpthread`
+   - Example: `gcc -o podman podman.c `
    - Run the compiled binary: `./two_phase_runc`
 
 2. **Explore Shell Scripts**:
