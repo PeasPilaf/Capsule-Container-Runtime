@@ -1,6 +1,6 @@
 # Building a Simple Container Manager in C
 
-This repository contains resources and code examples for understanding Linux containers. The content is structured to accompany a YouTube video series titled "Understanding Linux Containers."
+This commit has just refactored the code for better modularity, there is no change in function
 
 ## Repository Structure
 
@@ -10,15 +10,15 @@ This repository contains resources and code examples for understanding Linux con
   - **`README.md`**: This file.
   
 - **`/src`**: 
-  - **`headers.h`**: Header file with necessary includes for container-related C programs.
-  - **`capsule.c`**: A simple C program for container management.
+  - **`libcapsule`**: Folder containing `libcapsule.h`, the interface & it's implementation `libcapsule.c`.
+  - **`main.c`**: A simple C program for container management, using `libcapsule.h`
   - **`unshare_example.sh`**: Shell script demonstrating the use of the `unshare` command to create namespaces, and manually set up a "container-ised" process
 
 ## How to Use
 
 1. **Run the C Programs**:
    - Compile the C files using `gcc` or a similar compiler.
-   - Example: `gcc -o capsule capsule.c -lpthread`
+   - Example: `gcc -Isrc -Isrc/libcapsule src/main.c src/libcapsule/libcapsule.c -o capsule`
    - Run the compiled binary: `./capsule cmd ...args`
 
 2. **Explore Shell Scripts**:
