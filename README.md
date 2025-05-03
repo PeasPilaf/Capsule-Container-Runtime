@@ -1,6 +1,7 @@
 # Building a Simple Container Manager in C
 
-   Add mount namepsace isolation, and mount a seperate /proc directory inside the container. The container now correctly sees it's own process tree, instead of the host process tree
+   Use the `pivot_root` syscall to mount a new root directory for our container, isolating the host file system from the process
+   Add a readonly sys mount and some necessary defaults for dev (devtmpfs)
 
 ## Repository Structure
 
