@@ -96,7 +96,6 @@ int init_container(const char *program_name, char *const command_argv[]) {
     // set hostname
     if (sethostname(CONTAINER_HOSTNAME, strlen(CONTAINER_HOSTNAME)) == -1) {
         perror("[Init] sethostname failed");
-        return EXIT_FAILURE;
     }
 
     init_state += 1;
@@ -125,7 +124,7 @@ int init_container(const char *program_name, char *const command_argv[]) {
         case 1:
         case 2:
             printf("[Init:PID %ld] Container startup failed at step: %d\n", (long)getpid(), init_state);
-            break;
+            return EXIT_FAILURE;
         default:
             printf("[Init:PID %ld] Init state: Successfully started.\n", (long)getpid());
     }
