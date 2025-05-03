@@ -97,13 +97,7 @@ int init_container(const char *program_name, char *const command_argv[]) {
     if (sethostname(CONTAINER_HOSTNAME, strlen(CONTAINER_HOSTNAME)) == -1) {
         perror("[Init] sethostname failed");
     }
-
-    init_state += 1;
-
-    if (mount(NULL, "/", NULL, MS_REC | MS_PRIVATE, NULL) == -1) {
-        perror("[Init] Failed to make root private");
-    }
-
+    
     init_state += 1;
 
     // make mounts private
