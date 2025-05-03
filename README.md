@@ -1,6 +1,6 @@
 # Building a Simple Container Manager in C
 
-This commit has just refactored the code for better modularity, there is no change in function
+   Add mount namepsace isolation, and mount a seperate /proc directory inside the container. The container now correctly sees it's own process tree, instead of the host process tree
 
 ## Repository Structure
 
