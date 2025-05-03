@@ -5,6 +5,8 @@
 # Compiled binaries
 two_phase_runc
 podman
+main
+capsule
 
 # Editor/IDE specific
 .vscode/
