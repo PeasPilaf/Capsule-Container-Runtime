@@ -6,12 +6,13 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <sys/mount.h> 
 #include <signal.h> 
 #include <sched.h>
 #include <errno.h>
 
 #ifndef CLONE_FLAGS
-#define CLONE_FLAGS (CLONE_NEWPID | CLONE_NEWUTS | SIGCHLD)
+#define CLONE_FLAGS (CLONE_NEWPID | CLONE_NEWUTS | CLONE_NEWNS | SIGCHLD)
 #endif
 
 static int child_shim_func(void *arg) {
@@ -90,10 +91,38 @@ int create_container_simple(const char *command, libcapsule_container_state_t *s
 int init_container(const char *program_name, char *const command_argv[]) {
     printf("[Init:PID %ld] Running inside container namespace\n", (long)getpid());
 
+    int init_state = 0;
+
+    // set hostname
     if (sethostname(CONTAINER_HOSTNAME, strlen(CONTAINER_HOSTNAME)) == -1) {
         perror("[Init] sethostname failed");
-        return EXIT_FAILURE;
     }
+    
+    init_state += 1;
+
+    // make mounts private
+    if (mount(NULL, "/", NULL, MS_REC | MS_PRIVATE, NULL) == -1) {
+        perror("[Init] Failed to make root private");
+        }
+    
+    // mount proc
+    if (mount("proc", "/proc", "proc", MS_NOSUID | MS_NODEV | MS_NOEXEC, NULL) == -1) {
+        perror("[Init] Failed to mount /proc");
+    }
+
+    init_state += 1;
+
+    // init handle_cleanup_post_error(int* init_state)
+    switch(init_state) {
+        case 0:
+        case 1:
+        case 2:
+            printf("[Init:PID %ld] Container startup failed at step: %d\n", (long)getpid(), init_state);
+            return EXIT_FAILURE;
+        default:
+            printf("[Init:PID %ld] Init state: Successfully started.\n", (long)getpid());
+    }
+
 
     printf("[Init:PID %ld] Executing final command: %s\n", (long)getpid(), command_argv[0]);
     execvp(command_argv[0], command_argv);
