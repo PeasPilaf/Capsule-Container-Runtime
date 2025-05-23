@@ -15,6 +15,31 @@
   - **`main.c`**: A simple C program for container management, using `libcapsule.h`
   - **`unshare_example.sh`**: Shell script demonstrating the use of the `unshare` command to create namespaces, and manually set up a "container-ised" process
 
+## How to Setup Container
+
+Before switching into the container you have to setup a new root filesystem.
+
+1. **Setup and build the project**
+
+    ```shell
+    sudo make setup
+    make build
+    ```
+
+2. **Run new cintainer and get the shell**
+
+    ```shell
+    sudo ./capsule bash
+    ```
+
+    To terminate the container run `Ctrl+d`.
+
+3. **Cleanup**
+
+    ```shell
+    sudo make clean
+    ```
+
 ## How to Use
 
 1. **Run the C Programs**:
